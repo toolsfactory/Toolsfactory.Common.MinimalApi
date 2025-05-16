@@ -18,6 +18,7 @@
 	  <PackageOutputPath>..\..\bin</PackageOutputPath>
 	  <PackageLicenseFile>LICENSE</PackageLicenseFile>
 	  <BaseOutputPath>..\..\bin</BaseOutputPath>
+	  <Version>0.0.0</Version>
   </PropertyGroup>
 
 	<ItemGroup>
