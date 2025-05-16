@@ -1,0 +1,66 @@
+name: Create Release
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'  # Change as needed
+
+      - name: Install versionize
+        run: dotnet tool install --global versionize
+
+      - name: Restore Dependencies
+        run: dotnet restore Toolsfactory.Common.MinimalApi.sln
+
+      - name: Versionize
+        run: | 
+            git config --global user.name "github-actions"
+            git config --global user.email "actions@github.com"
+            versionize 
+            LATEST_TAG=$(versionize inspect)
+            export LATEST_TAG
+            echo "LATEST_TAG set to: $LATEST_TAG"
+            echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+
+      - name: Build Project
+        run:  dotnet build Toolsfactory.Common.MinimalApi.sln  --no-restore -c Release
+
+      - name: Pack Nuget packages
+        run:  dotnet pack Toolsfactory.Common.MinimalApi.sln  -c Release --no-restore
+
+      - name: push versionized changes  
+        run: | 
+            git config --global user.name "github-actions"
+            git config --global user.email "actions@github.com"
+            git push --follow-tags origin HEAD:main
+  
+      - name: release
+        uses: actions/create-release@v1
+        id: create_release
+        with:
+          draft: false
+          prerelease: false
+          release_name: v${{ env.LATEST_TAG }}
+          tag_name: v${{ env.LATEST_TAG }}
+          body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Show packages
+        run: ls -la bin/Release/
+
+      - name: Publish Packages
+        run: dotnet nuget push bin/*.nupkg -k ${{secrets.NUGET_PUBLISH_KEY}} -s https://api.nuget.org/v3/index.json  --skip-duplicate
